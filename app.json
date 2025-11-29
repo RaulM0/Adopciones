@@ -16,14 +16,31 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.yourcompany.petadoption",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.QUERY_ALL_PACKAGES"
+      ],
+      "queries": {
+        "package": ["com.DefaultCompany.Adopciones"]
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ]
   }
 }

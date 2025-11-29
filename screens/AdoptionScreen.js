@@ -9,10 +9,11 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { collection, addDoc } from 'firebase/firestore';
-import { db } from '../firebaseConfig';
-import { AuthContext } from '../context/AuthContext';
+import { db } from '../firebaseConfig'; // Asegúrate que la ruta sea correcta
+import { AuthContext } from '../context/AuthContext'; // Asegúrate que la ruta sea correcta
 
 export default function AdoptionScreen({ route, navigation }) {
   const { pet } = route.params;
@@ -57,11 +58,15 @@ export default function AdoptionScreen({ route, navigation }) {
         [
           {
             text: 'OK',
-            onPress: () => navigation.navigate('Home'),
+            // --- CORRECCIÓN FINAL ---
+            // Usamos popToTop() porque 'Adoption' está en el mismo Stack que 'Main'.
+            // Esto te regresa a la pantalla principal ('Main') de forma segura.
+            onPress: () => navigation.popToTop(), 
           },
         ]
       );
     } catch (error) {
+      console.error(error);
       Alert.alert('Error', 'No se pudo enviar la solicitud. Intenta nuevamente.');
     } finally {
       setLoading(false);
@@ -152,9 +157,11 @@ export default function AdoptionScreen({ route, navigation }) {
             onPress={handleSubmit}
             disabled={loading}
           >
-            <Text style={styles.submitButtonText}>
-              {loading ? 'Enviando...' : 'Enviar Solicitud'}
-            </Text>
+            {loading ? (
+                <ActivityIndicator color="white" />
+            ) : (
+                <Text style={styles.submitButtonText}>Enviar Solicitud</Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -217,6 +224,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     marginTop: 10,
+    marginBottom: 40,
   },
   buttonDisabled: {
     opacity: 0.6,
