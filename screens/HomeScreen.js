@@ -1,5 +1,4 @@
-// screens/HomeScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,9 +9,11 @@ import {
   Linking,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
-import { collection, getDocs } from 'firebase/firestore';
+// Agregamos 'query' y 'where' para filtrar mascotas
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native'; // Importante para recargar al volver
 
 export default function HomeScreen({ navigation }) {
   const [centers, setCenters] = useState([]);
@@ -24,20 +25,47 @@ export default function HomeScreen({ navigation }) {
     longitudeDelta: 0.0421,
   });
 
-  useEffect(() => {
-    loadCenters();
-  }, []);
+  // Usamos useFocusEffect para que los datos se actualicen cada vez que entras a la pantalla
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [])
+  );
 
-  const loadCenters = async () => {
+  const loadData = async () => {
     try {
+      // 1. Obtener Centros
       const centersSnapshot = await getDocs(collection(db, 'centers'));
-      const centersData = centersSnapshot.docs.map((doc) => ({
+      let centersData = centersSnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
+        petsCount: 0 // Inicializamos en 0
       }));
+
+      // 2. Obtener TODAS las mascotas disponibles (available == true)
+      // Esto es necesario para hacer el conteo real sin depender de un campo fijo en el centro
+      const petsQuery = query(collection(db, 'pets'), where('available', '==', true));
+      const petsSnapshot = await getDocs(petsQuery);
+
+      // 3. Calcular el conteo por centro
+      const counts = {};
+      petsSnapshot.forEach(doc => {
+        const pet = doc.data();
+        if (pet.centerId) {
+          counts[pet.centerId] = (counts[pet.centerId] || 0) + 1;
+        }
+      });
+
+      // 4. Asignar el conteo real a cada centro
+      centersData = centersData.map(center => ({
+        ...center,
+        petsCount: counts[center.id] || 0
+      }));
+
       setCenters(centersData);
     } catch (error) {
-      Alert.alert('Error', 'No se pudieron cargar los centros de adopción');
+      console.error(error);
+      Alert.alert('Error', 'No se pudieron cargar los datos');
     }
   };
 
@@ -47,13 +75,10 @@ export default function HomeScreen({ navigation }) {
   };
 
   const openUnityApp = async () => {
-    // Package name de tu app Unity (CORRECTO)
     const UNITY_PACKAGE_NAME = 'com.unity.template.ar_mobile';
     
     try {
-      // MÉTODO 1: Intent con ACTION_MAIN (más compatible)
       const mainIntent = `intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=${UNITY_PACKAGE_NAME};end`;
-      
       const canOpenMain = await Linking.canOpenURL(mainIntent);
       
       if (canOpenMain) {
@@ -61,7 +86,6 @@ export default function HomeScreen({ navigation }) {
         return;
       }
 
-      // MÉTODO 2: Intent simple
       const simpleIntent = `intent://#Intent;package=${UNITY_PACKAGE_NAME};end`;
       const canOpenSimple = await Linking.canOpenURL(simpleIntent);
       
@@ -70,7 +94,6 @@ export default function HomeScreen({ navigation }) {
         return;
       }
 
-      // MÉTODO 3: Android app scheme
       const appScheme = `android-app://${UNITY_PACKAGE_NAME}`;
       const canOpenScheme = await Linking.canOpenURL(appScheme);
       
@@ -79,7 +102,6 @@ export default function HomeScreen({ navigation }) {
         return;
       }
 
-      // Si ninguno funciona, mostrar error con opciones
       Alert.alert(
         'No se pudo abrir la app',
         'La aplicación Unity no se puede abrir automáticamente.\n\n' +
@@ -111,50 +133,6 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
-  // Función de prueba mejorada para diagnosticar
-  const testPackages = async () => {
-    const UNITY_PACKAGE_NAME = 'com.DefaultCompany.Adopciones';
-    
-    const methods = [
-      {
-        name: 'Intent MAIN + LAUNCHER',
-        url: `intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=${UNITY_PACKAGE_NAME};end`
-      },
-      {
-        name: 'Intent Simple',
-        url: `intent://#Intent;package=${UNITY_PACKAGE_NAME};end`
-      },
-      {
-        name: 'Android App Scheme',
-        url: `android-app://${UNITY_PACKAGE_NAME}`
-      },
-      {
-        name: 'Intent con Scheme',
-        url: `intent://#Intent;scheme=https;package=${UNITY_PACKAGE_NAME};end`
-      },
-      {
-        name: 'WhatsApp (test)',
-        url: `whatsapp://send?phone=1234567890`
-      }
-    ];
-
-    let results = [];
-    for (const method of methods) {
-      try {
-        const canOpen = await Linking.canOpenURL(method.url);
-        results.push(`${method.name}:\n${canOpen ? '✅ Funciona' : '❌ No funciona'}`);
-      } catch (error) {
-        results.push(`${method.name}:\n⚠️ Error: ${error.message}`);
-      }
-    }
-
-    Alert.alert(
-      'Diagnóstico de Métodos',
-      results.join('\n\n'),
-      [{ text: 'OK' }]
-    );
-  };
-
   return (
     <View style={styles.container}>
       <MapView style={styles.map} region={region}>
@@ -166,7 +144,7 @@ export default function HomeScreen({ navigation }) {
               longitude: center.longitude,
             }}
             title={center.name}
-            description={center.address}
+            description={`${center.petsCount} mascotas disponibles`} // Mostramos el conteo aquí también
             onPress={() => handleCenterPress(center)}
           />
         ))}
@@ -176,7 +154,6 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.headerContainer}>
           <Text style={styles.listTitle}>Centros de Adopción</Text>
           <View style={styles.buttonsContainer}>
-            
             <TouchableOpacity style={styles.unityButton} onPress={openUnityApp}>
               <Ionicons name="cube" size={20} color="white" />
               <Text style={styles.unityButtonText}>Conocer más</Text>
@@ -197,7 +174,7 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.centerName}>{item.name}</Text>
               <Text style={styles.centerAddress}>{item.address}</Text>
               <Text style={styles.centerPets}>
-                {item.petsCount || 0} mascotas disponibles
+                {item.petsCount} {item.petsCount === 1 ? 'mascota disponible' : 'mascotas disponibles'}
               </Text>
             </TouchableOpacity>
           )}
@@ -245,15 +222,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  testButton: {
-    backgroundColor: '#888',
-    padding: 8,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 36,
-    height: 36,
-  },
   unityButton: {
     flexDirection: 'row',
     backgroundColor: '#4A90E2',
@@ -291,5 +259,6 @@ const styles = StyleSheet.create({
   centerPets: {
     fontSize: 12,
     color: '#999',
+    fontWeight: '600'
   },
 });
