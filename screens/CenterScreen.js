@@ -1,3 +1,4 @@
+// screens/CenterScreen.js
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -22,10 +23,13 @@ export default function CenterScreen({ route, navigation }) {
 
   const loadPets = async () => {
     try {
+      // Modificamos la query para pedir solo las disponibles
       const petsQuery = query(
         collection(db, 'pets'),
-        where('centerId', '==', center.id)
+        where('centerId', '==', center.id),
+        where('available', '==', true) // <--- ESTA LÍNEA ES LA CLAVE
       );
+
       const petsSnapshot = await getDocs(petsQuery);
       const petsData = petsSnapshot.docs.map((doc) => ({
         id: doc.id,
@@ -33,6 +37,7 @@ export default function CenterScreen({ route, navigation }) {
       }));
       setPets(petsData);
     } catch (error) {
+      console.error(error); // Bueno para depurar
       Alert.alert('Error', 'No se pudieron cargar las mascotas');
     } finally {
       setLoading(false);

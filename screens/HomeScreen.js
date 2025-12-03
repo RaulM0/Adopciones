@@ -1,3 +1,4 @@
+// screens/HomeScreen.js
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -175,9 +176,7 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.headerContainer}>
           <Text style={styles.listTitle}>Centros de Adopción</Text>
           <View style={styles.buttonsContainer}>
-            <TouchableOpacity style={styles.testButton} onPress={testPackages}>
-              <Ionicons name="bug" size={16} color="white" />
-            </TouchableOpacity>
+            
             <TouchableOpacity style={styles.unityButton} onPress={openUnityApp}>
               <Ionicons name="cube" size={20} color="white" />
               <Text style={styles.unityButtonText}>Conocer más</Text>

@@ -1,3 +1,4 @@
+// screens/FavoritesScreen.js
 import React, { useState, useContext, useCallback } from 'react';
 import {
   View,

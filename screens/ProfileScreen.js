@@ -1,3 +1,4 @@
+// screens/ProfileScreen.js
 import React, { useContext, useState, useEffect } from 'react';
 import {
   View,
@@ -10,21 +11,21 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { signOut } from 'firebase/auth';
-import { 
-  doc, 
-  getDoc, 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  updateDoc, 
-  arrayUnion 
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  updateDoc,
+  arrayUnion
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import * as ImagePicker from 'expo-image-picker';
 
 // Importamos storage también. Asegúrate de que la ruta a firebaseConfig sea correcta
-import { auth, db, storage } from '../firebaseConfig'; 
+import { auth, db, storage } from '../firebaseConfig';
 import { AuthContext } from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -33,7 +34,7 @@ export default function ProfileScreen() {
   const [userData, setUserData] = useState(null);
   const [adoptions, setAdoptions] = useState([]);
   const [loadingAdoptions, setLoadingAdoptions] = useState(true);
-  
+
   // Estados para la subida de imagen
   const [uploading, setUploading] = useState(false);
   const [selectedAdoptionId, setSelectedAdoptionId] = useState(null);
@@ -61,17 +62,17 @@ export default function ProfileScreen() {
         collection(db, 'adoptions'),
         where('userId', '==', user.uid)
       );
-      
+
       const querySnapshot = await getDocs(q);
       const adoptionsList = [];
-      
+
       querySnapshot.forEach((doc) => {
         adoptionsList.push({ id: doc.id, ...doc.data() });
       });
 
       // Ordenar: Las más recientes primero
       adoptionsList.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      
+
       setAdoptions(adoptionsList);
     } catch (error) {
       console.error('Error cargando adopciones:', error);
@@ -85,7 +86,7 @@ export default function ProfileScreen() {
   const handleAddFollowUp = async (adoptionId) => {
     // 1. Pedir permisos para acceder a la galería
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
+
     if (permissionResult.granted === false) {
       Alert.alert("Permiso requerido", "Necesitas dar acceso a la galería para subir fotos de seguimiento.");
       return;
@@ -107,26 +108,26 @@ export default function ProfileScreen() {
   const uploadFollowUpImage = async (uri, adoptionId) => {
     setUploading(true);
     setSelectedAdoptionId(adoptionId);
-    
+
     try {
       // 1. Preparar el archivo para subir
       const response = await fetch(uri);
       const blob = await response.blob();
-      
+
       // 2. Crear nombre único para la foto
       const filename = `followup_${Date.now()}.jpg`;
       // Ruta en Firebase Storage: seguimientos/ID_ADOPCION/nombre_foto.jpg
       const storageRef = ref(storage, `followups/${adoptionId}/${filename}`);
-      
+
       // 3. Subir la imagen a la nube
       await uploadBytes(storageRef, blob);
-      
+
       // 4. Obtener el link de descarga público
       const downloadURL = await getDownloadURL(storageRef);
-      
+
       // 5. Guardar ese link en la base de datos (Firestore)
       const adoptionRef = doc(db, 'adoptions', adoptionId);
-      
+
       const newFollowUp = {
         date: new Date().toISOString(),
         imageUrl: downloadURL,
@@ -139,7 +140,7 @@ export default function ProfileScreen() {
       });
 
       Alert.alert("¡Excelente!", "Tu foto de seguimiento se ha subido correctamente.");
-      
+
       // Recargar la lista para ver la foto nueva
       loadUserAdoptions();
 
@@ -175,7 +176,7 @@ export default function ProfileScreen() {
 
   // Función auxiliar para colores de estado
   const getStatusColor = (status) => {
-    switch(status) {
+    switch (status) {
       case 'approved': return '#4CAF50'; // Verde
       case 'rejected': return '#F44336'; // Rojo
       default: return '#FF9800'; // Naranja (Pending)
@@ -183,7 +184,7 @@ export default function ProfileScreen() {
   };
 
   const getStatusText = (status) => {
-    switch(status) {
+    switch (status) {
       case 'approved': return 'Aprobada';
       case 'rejected': return 'Rechazada';
       default: return 'Pendiente';
@@ -218,13 +219,14 @@ export default function ProfileScreen() {
           <View style={styles.infoContent}>
             <Text style={styles.infoLabel}>Miembro desde</Text>
             <Text style={styles.infoValue}>
-              {userData?.registrationDate
-                ? new Date(userData.registrationDate).toLocaleDateString('es-MX', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })
-                : 'Cargando...'}
+              {/* CORRECCIÓN: Usamos user.metadata.creationTime que siempre existe */}
+              {user?.metadata?.creationTime || user?.metadata?.lastSignInTime
+                ? new Date(user.metadata.creationTime || user.metadata.lastSignInTime).toLocaleDateString('es-MX', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })
+                : 'Fecha no disponible'}
             </Text>
           </View>
         </View>
@@ -235,7 +237,7 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Mis Adopciones</Text>
 
         {loadingAdoptions ? (
-          <ActivityIndicator size="small" color="#FF6B6B" style={{margin: 20}} />
+          <ActivityIndicator size="small" color="#FF6B6B" style={{ margin: 20 }} />
         ) : adoptions.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="paw-outline" size={40} color="#ccc" />
@@ -244,14 +246,14 @@ export default function ProfileScreen() {
         ) : (
           adoptions.map((adoption) => (
             <View key={adoption.id} style={styles.adoptionCard}>
-              
+
               {/* Encabezado de la tarjeta */}
               <View style={styles.adoptionHeader}>
                 <View>
-                    <Text style={styles.petNameTitle}>{adoption.petName}</Text>
-                    <Text style={styles.adoptionDate}>
-                        Solicitado el {new Date(adoption.createdAt).toLocaleDateString()}
-                    </Text>
+                  <Text style={styles.petNameTitle}>{adoption.petName}</Text>
+                  <Text style={styles.adoptionDate}>
+                    Solicitado el {new Date(adoption.createdAt).toLocaleDateString()}
+                  </Text>
                 </View>
                 <View style={[styles.statusBadge, { backgroundColor: getStatusColor(adoption.status) }]}>
                   <Text style={styles.statusText}>{getStatusText(adoption.status)}</Text>
@@ -265,46 +267,46 @@ export default function ProfileScreen() {
 
               {/* ÁREA DE SEGUIMIENTO */}
               {/* Se muestra si está aprobada o si queremos probar (elimina el "|| true" en producción) */}
-              {adoption.status === 'approved' || true ? ( 
+              {adoption.status === 'approved' ? (
                 <View style={styles.followUpContainer}>
                   <View style={styles.followUpHeader}>
                     <Text style={styles.followUpTitle}>📸 Seguimiento Mensual</Text>
                     <Text style={styles.followUpCount}>
-                       {adoption.followUps ? adoption.followUps.length : 0} fotos
+                      {adoption.followUps ? adoption.followUps.length : 0} fotos
                     </Text>
                   </View>
-                  
+
                   {/* Botón de subir */}
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.uploadButton}
                     onPress={() => handleAddFollowUp(adoption.id)}
                     disabled={uploading}
                   >
                     {uploading && selectedAdoptionId === adoption.id ? (
-                        <ActivityIndicator color="white" size="small" />
+                      <ActivityIndicator color="white" size="small" />
                     ) : (
-                        <>
-                            <Ionicons name="add-circle" size={20} color="white" />
-                            <Text style={styles.uploadButtonText}>Subir Nueva Foto</Text>
-                        </>
+                      <>
+                        <Ionicons name="add-circle" size={20} color="white" />
+                        <Text style={styles.uploadButtonText}>Subir Nueva Foto</Text>
+                      </>
                     )}
                   </TouchableOpacity>
 
                   {/* Galería de fotos subidas */}
                   {adoption.followUps && adoption.followUps.length > 0 && (
-                      <ScrollView horizontal style={styles.photosScroll} showsHorizontalScrollIndicator={false}>
-                          {adoption.followUps.map((pic, index) => (
-                              <View key={index} style={styles.photoWrapper}>
-                                <Image 
-                                  source={{ uri: pic.imageUrl }} 
-                                  style={styles.thumbnail} 
-                                />
-                                <Text style={styles.photoDate}>
-                                  {new Date(pic.date).toLocaleDateString(undefined, {month:'short', day:'numeric'})}
-                                </Text>
-                              </View>
-                          ))}
-                      </ScrollView>
+                    <ScrollView horizontal style={styles.photosScroll} showsHorizontalScrollIndicator={false}>
+                      {adoption.followUps.map((pic, index) => (
+                        <View key={index} style={styles.photoWrapper}>
+                          <Image
+                            source={{ uri: pic.imageUrl }}
+                            style={styles.thumbnail}
+                          />
+                          <Text style={styles.photoDate}>
+                            {new Date(pic.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                          </Text>
+                        </View>
+                      ))}
+                    </ScrollView>
                   )}
                 </View>
               ) : null}
@@ -314,21 +316,7 @@ export default function ProfileScreen() {
       </View>
 
       {/* CONFIGURACIÓN Y SALIDA */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Configuración</Text>
 
-        <TouchableOpacity style={styles.menuItem}>
-          <Ionicons name="notifications" size={24} color="#666" />
-          <Text style={styles.menuText}>Notificaciones</Text>
-          <Ionicons name="chevron-forward" size={24} color="#999" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem}>
-          <Ionicons name="shield-checkmark" size={24} color="#666" />
-          <Text style={styles.menuText}>Privacidad</Text>
-          <Ionicons name="chevron-forward" size={24} color="#999" />
-        </TouchableOpacity>
-      </View>
 
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Ionicons name="log-out" size={24} color="white" />
@@ -377,7 +365,7 @@ const styles = StyleSheet.create({
   infoContent: { marginLeft: 15, flex: 1 },
   infoLabel: { fontSize: 12, color: '#999', marginBottom: 3 },
   infoValue: { fontSize: 16, color: '#333', fontWeight: '600' },
-  
+
   // --- ESTILOS DE ADOPCIONES ---
   adoptionCard: {
     backgroundColor: 'white',
@@ -399,14 +387,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   petNameTitle: {
-      fontSize: 20,
-      fontWeight: 'bold',
-      color: '#333',
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
   },
   adoptionDate: {
-      fontSize: 12,
-      color: '#999',
-      marginTop: 2,
+    fontSize: 12,
+    color: '#999',
+    marginTop: 2,
   },
   statusBadge: {
     paddingHorizontal: 10,
@@ -420,18 +408,18 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   adoptionReason: {
-      fontSize: 14,
-      color: '#666',
-      fontStyle: 'italic',
-      marginBottom: 15,
-      paddingBottom: 15,
-      borderBottomWidth: 1,
-      borderBottomColor: '#f0f0f0',
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+    marginBottom: 15,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  
+
   // Seguimiento
   followUpContainer: {
-      marginTop: 5,
+    marginTop: 5,
   },
   followUpHeader: {
     flexDirection: 'row',
@@ -449,34 +437,34 @@ const styles = StyleSheet.create({
     color: '#999',
   },
   uploadButton: {
-      backgroundColor: '#FF6B6B',
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 10,
-      borderRadius: 8,
-      marginBottom: 15,
+    backgroundColor: '#FF6B6B',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginBottom: 15,
   },
   uploadButtonText: {
-      color: 'white',
-      fontWeight: '600',
-      marginLeft: 8,
-      fontSize: 14,
+    color: 'white',
+    fontWeight: '600',
+    marginLeft: 8,
+    fontSize: 14,
   },
   photosScroll: {
-      flexDirection: 'row',
+    flexDirection: 'row',
   },
   photoWrapper: {
     marginRight: 10,
     alignItems: 'center',
   },
   thumbnail: {
-      width: 70,
-      height: 70,
-      borderRadius: 8,
-      backgroundColor: '#f0f0f0',
-      borderWidth: 1,
-      borderColor: '#eee',
+    width: 70,
+    height: 70,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#eee',
   },
   photoDate: {
     fontSize: 10,

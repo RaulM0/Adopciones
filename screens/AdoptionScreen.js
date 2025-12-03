@@ -1,3 +1,4 @@
+// screens/AdoptionScreen.js
 import React, { useState, useContext } from 'react';
 import {
   View,
